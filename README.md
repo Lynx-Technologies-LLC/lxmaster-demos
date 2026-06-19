@@ -9,6 +9,8 @@ Demos in this repo:
 
 | Demo                     | What it shows                                                        |
 | ------------------------ | ------------------------------------------------------------------- |
+| `do_shift_demo`          | 16-bit digital-output left-shift walk on the first CiA401 I/O module. |
+| `servo_sin_demo`         | Cyclic Synchronous Position (CSP) sine profile on every axis.        |
 | `servo_sin_vel_demo`     | Cyclic Synchronous Velocity (CSV) sine profile on every axis.        |
 | `servo_sin_torque_demo`  | Cyclic Synchronous Torque (CST) sine profile on every axis.          |
 | `servo_mode_sweep_demo`  | Sweeps a single axis through CSP / CSV / CST operating modes.        |
@@ -44,30 +46,33 @@ Binaries are written to `build/bin/`.
 
 ## Running
 
-The demos need a real-time-tuned host and an EtherCAT interface. With LXMSTR
-installed, run them on the isolated RT core via the CLI:
+The demos need a real-time-tuned host and an EtherCAT interface. They take no
+command-line arguments: the ENI path and every other knob are hardcoded as
+`constexpr` constants at the top of each `main.cpp`. The default ENI path is
+`network.eni.xml` (relative to the working directory) — edit the `kEniPath`
+constant or place the ENI there before running. With LXMSTR installed, run them
+on the isolated RT core via the CLI:
 
 ```bash
 sudo lxmstr host tune                 # one-time host setup; sets LXMSTR_RT_IFACE
-sudo lxmstr run servo_sin_vel_demo --eni <file>
-sudo lxmstr run build/bin/sine_shift_demo --eni <file>
+sudo lxmstr run servo_sin_vel_demo
+sudo lxmstr run build/bin/sine_shift_demo
 ```
 
 You can also launch a binary directly, but `lxmstr run` applies the RT CPU/priority
 placement the demos expect.
 
-## LXMSTR package contract (build dependency)
+## LXMSTR package (build dependency)
 
-`find_package(lxmstr CONFIG REQUIRED)` must resolve to an installed LXMSTR CMake
-package that provides:
+`find_package(lxmstr CONFIG REQUIRED)` resolves to the installed LXMSTR package
+(`sudo apt install lxmstr`, or a local `cmake --install`). It provides:
 
-- an imported, namespaced target **`lxmstr::ecnet`**, carrying its transitive
-  public dependencies (`facade`, `devices`, `ecmaster`, `eni`) in the same export
-  set;
-- the installed public headers, with **`<lxmstr/lxmstr.hpp>`** as the advertised
-  single entry point (plus the `ecnet/`, `facade/`, `devices/` headers it pulls
-  in transitively).
+- the merged imported target **`lxmstr::lxmstr`** (the single `liblxmstr.so`, with the
+  proprietary LXEC backend compiled in and hidden), with **`lxmstr::ecnet`** kept as a
+  back-compat alias - these demos link `lxmstr::ecnet`;
+- the installed public headers, with **`<lxmstr/lxmstr.hpp>`** as the advertised single
+  entry point (plus the `ecnet/`, `facade/`, `devices/`, `ecmaster/`, `eni/` headers it
+  pulls in transitively).
 
-Until LXMSTR ships those install/export rules, `cmake -B build` here will fail at
-`find_package(lxmstr ...)` — that is expected. This repo is build-ready and will
-work as soon as the LXMSTR packaging phase lands the export.
+If LXMSTR is installed to a non-default prefix (e.g. a staging dir), pass
+`-DCMAKE_PREFIX_PATH=/path/to/prefix` when configuring.

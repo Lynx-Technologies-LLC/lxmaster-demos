@@ -25,19 +25,17 @@ static void installSignalHandler() {
 }
 
 /**
- * ENI-driven generic CiA402 velocity (CSV) sine demo. Commands a sinusoidal target velocity:
- *   vel(t) = amplitude * sin(2 * pi * frequency * t)   [counts/s]
- * sin(0)=0, so the drive starts and ends at zero velocity — no startup step.
+ * ENI-driven generic CiA402 sine demo (CSP). Commands a sinusoidal target around the drive's
+ * actual position on entry:
+ *   pos(t) = hold + (amplitude / 2) * cos(2 * pi * frequency * t) - (amplitude / 2)
  *
  * Only the ENI path and sine profile are configured below; the EtherCAT interface comes from the
- * LXMSTR_RT_IFACE env, and the cyclic period / sync mode come from the ENI. The ENI must map
- * target velocity 0x60FF and set modes-of-operation 0x6060 to CSV (9). Edit the kXxx constants to
- * retarget.
+ * LXMSTR_RT_IFACE env, and the cyclic period / sync mode come from the ENI. Edit the kXxx
+ * constants to retarget.
  */
-constexpr std::int32_t kAmplitudeCountsPerSec = 100000;
+constexpr std::int32_t kAmplitudeCounts = 10000;
 constexpr double kFrequencyHz = 0.5;
 constexpr int kCycles = 5;
-
 constexpr double kTwoPi = 6.283185307179586476925286766559;
 
 static double elapsedS(std::chrono::steady_clock::time_point now,
@@ -51,11 +49,13 @@ static std::int32_t clampI32(double v) {
       std::min(static_cast<double>(std::numeric_limits<std::int32_t>::max()), v)));
 }
 
-/* vel(t) = amplitude * sin(ωt); sin(0)=0 so it ramps up smoothly from rest. */
-static std::int32_t velocityAt(std::chrono::steady_clock::time_point now,
-                               std::chrono::steady_clock::time_point start) {
+/* cos(ωt) with no phase offset; scale by amp/2 then subtract amp/2 so cos(0)=1 lands on hold.
+ * Trough at half period is hold − amp; each full period returns to hold. */
+static std::int32_t positionAt(std::chrono::steady_clock::time_point now,
+                               std::chrono::steady_clock::time_point start, std::int32_t hold) {
   const double omega_t = kTwoPi * kFrequencyHz * elapsedS(now, start);
-  return clampI32(static_cast<double>(kAmplitudeCountsPerSec) * std::sin(omega_t));
+  const double amp = static_cast<double>(kAmplitudeCounts);
+  return clampI32(static_cast<double>(hold) + 0.5 * amp * std::cos(omega_t) - 0.5 * amp);
 }
 
 int main() {
@@ -91,9 +91,9 @@ int main() {
     return 1;
   }
 
-  // iterate over servo drive axes and set them to Cyclic Synchronous Velocity mode
+  // iterate over servo drive axes and set them to Cyclic Synchronous Position mode
   for (lxmstr::Axis* ax : axes) {
-    ax->setDriveMode(lxmstr::DriveOpMode::Csv);
+    ax->setDriveMode(lxmstr::DriveOpMode::Csp);
     ax->configure();  // walk this axis up to OP
   }
 
@@ -106,21 +106,26 @@ int main() {
     return 1;
   }
 
-  // Let the RT thread publish a couple of cycles so `velocity()` is meaningful.
+  // Let the RT thread publish a couple of cycles so `position()` is non-zero.
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
-  // set some parameters for sinusoidal trajectory
+  // get current position of the drive
+  const std::int32_t hold = drive->actualPosition();
+
+  ///= set some parameters for sinusoidal trajectory
   const double period_s = 1.0 / kFrequencyHz;
   const double total_s  = period_s * static_cast<double>(kCycles);
-  std::cout << "Operational. CSV velocity sine profile:\n"
-            << "  amplitude (cnt/s) = " << kAmplitudeCountsPerSec << "\n"
-            << "  frequency (Hz)    = " << kFrequencyHz << "\n"
-            << "  cycles            = " << kCycles
+  std::cout << "Operational. Sine profile:\n"
+            << "  center (counts)  = " << hold << "\n"
+            << "  amplitude        = " << kAmplitudeCounts << "\n"
+            << "  frequency (Hz)   = " << kFrequencyHz << "\n"
+            << "  cycles           = " << kCycles
             << "  -> duration " << total_s << " s\n"
-            << "  cycle period      = " << net.cycleTimeNs() << " ns (from ENI)\n";
+            << "  cycle period     = " << net.cycleTimeNs() << " ns (from ENI)\n";
 
-  // start at zero velocity so the profile does not step away from rest at t=0
-  drive->moveAtVelocity(0);
+  /* Latch the first target at hold so the cosine profile does not step away from the
+   * drive's actual position before t=0. */
+  drive->moveTo(hold);
 
   // we will try to create a trajectory that is in same step as the ethercat network cycletime
   const auto update_period = std::chrono::nanoseconds(net.cycleTimeNs());
@@ -129,13 +134,13 @@ int main() {
   const auto deadline = start + std::chrono::duration_cast<std::chrono::steady_clock::duration>(
                                     std::chrono::duration<double>(total_s));
 
-  // feed the trajectory points as long as system is not interrupted
+  // feed the trajectory points as long as system is not interrupted                                    
   while (net.isRunning() && !g_interrupted) {
     const auto now = std::chrono::steady_clock::now();
     if (now >= deadline) break;
 
     // take a new trajectory point and send it to drive
-    drive->moveAtVelocity(velocityAt(now, start));
+    drive->moveTo(positionAt(now, start, hold));
 
     std::this_thread::sleep_for(update_period);
   }
@@ -145,12 +150,12 @@ int main() {
    * is still safe, but latching `stopped_early` here makes the intent obvious. */
   const bool stopped_early = !net.isRunning();
 
-  /* Before tearing down, command zero velocity so we don't leave the drive coasting at a
-   * random point along the sine — let it decelerate to rest. One cycle period is enough for
-   * the RT thread to apply it; avoid a long sleep because `stop()` reads vendor diagnostics
-   * while still in OP. */
+  /* Before tearing down, command the center position so we don't leave the drive parked at
+   * a random point along the sine — keeps subsequent runs starting from a consistent spot.
+   * One cycle period is enough for the RT thread to apply it; avoid a long sleep here
+   * because `stop()` reads vendor diagnostics while still in OP. */
   if (!stopped_early) {
-    drive->moveAtVelocity(0);
+    drive->moveTo(hold);
     std::this_thread::sleep_for(update_period);
   }
 
@@ -161,7 +166,7 @@ int main() {
     std::cerr << '\n';
     net.reportDeviceStatus(std::cerr);
     const std::string reason = net.lastError();
-    std::cerr << "\nRun ended early (velocity sine profile incomplete).\n";
+    std::cerr << "\nRun ended early (sine profile incomplete).\n";
     if (!reason.empty()) {
       std::cerr << "  Reason: " << reason << "\n";
     } else {
