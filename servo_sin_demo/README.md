@@ -25,7 +25,7 @@ sudo lxmaster eni gen \
   --out network.eni.xml
 ```
 
-The EtherCAT interface is taken from the `LXMASTER_RT_IFACE` env (set by `lxmaster host tune` and
+The EtherCAT interface is taken from the `LXMASTER_RT_IFACE` env (set by `lxmaster host setup` and
 forwarded by `lxmaster eni`).
 
 ### 2. Run the sine demo
@@ -39,7 +39,7 @@ sine profile (`kAmplitudeCounts`, `kFrequencyHz`, `kCycles`) are hardcoded as `c
 constants at the top of `main.cpp` — edit them or place the ENI at the hardcoded path before
 running.
 
-The EtherCAT interface comes from the `LXMASTER_RT_IFACE` env (set by `lxmaster host tune`, forwarded
+The EtherCAT interface comes from the `LXMASTER_RT_IFACE` env (set by `lxmaster host setup`, forwarded
 into the RT slice by `lxmaster run`).
 
 Cyclic period and sync mode are taken solely from the ENI. The period is set when you generate

@@ -54,7 +54,7 @@ constant or place the ENI there before running. With LXMASTER installed, run the
 on the isolated RT core via the CLI:
 
 ```bash
-sudo lxmaster host tune                 # one-time host setup; sets LXMASTER_RT_IFACE
+sudo lxmaster host setup                 # one-time host setup; sets LXMASTER_RT_IFACE
 sudo lxmaster run servo_sin_vel_demo
 sudo lxmaster run build/bin/sine_shift_demo
 ```

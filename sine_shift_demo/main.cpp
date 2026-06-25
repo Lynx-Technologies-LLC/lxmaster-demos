@@ -82,12 +82,12 @@ int main() {
   // check to make sure ethercat interface name is set from ENV
   if (cfg.bus.ifname.empty()) {
     std::cerr << "No EtherCAT interface: set LXMASTER_RT_IFACE in /etc/profile.d/lxmaster-config.sh "
-                 "(run lxmaster host tune first).\n";
+                 "(run lxmaster host setup first).\n";
     return 1;
   }
 
   // set the path for network ENI file (generate by: lxmaster eni gen -h )
-  cfg.eni.eni_path = "~/myenifolder/myenifile.xml";
+  cfg.eni.eni_path = "/home/user/myenifolder/myenifile.xml";
 
   // define an ethercat network
   lxmaster::EcNetwork net(cfg);
