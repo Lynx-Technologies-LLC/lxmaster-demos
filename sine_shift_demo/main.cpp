@@ -11,7 +11,7 @@
 #include <thread>
 #include <vector>
 
-#include <lxmstr/lxmstr.hpp>
+#include <lxmaster/lxmaster.hpp>
 
 static std::atomic<bool> g_interrupted{false};
 
@@ -29,7 +29,7 @@ static void installSignalHandler() {
  * Combined demo: drive a servo in a sine (CSP) while walking a single active bit
  * across a digital-output module, both running OPERATIONAL on the same bus.
  *
- * The EtherCAT interface comes from the LXMSTR_RT_IFACE env; the ENI path and every other knob
+ * The EtherCAT interface comes from the LXMASTER_RT_IFACE env; the ENI path and every other knob
  * (sine shape, bit timing, DC tuning) are hardcoded below — edit the kXxx constants to retarget.
  */
 /** Sine profile (encoder counts / Hz / number of full cycles to run). */
@@ -77,20 +77,20 @@ int main() {
   installSignalHandler();
 
   // Get a default set of Ethercat Network parameters
-  lxmstr::NetworkConfig cfg = lxmstr::NetworkConfig::defaults();
+  lxmaster::NetworkConfig cfg = lxmaster::NetworkConfig::defaults();
 
   // check to make sure ethercat interface name is set from ENV
   if (cfg.bus.ifname.empty()) {
-    std::cerr << "No EtherCAT interface: set LXMSTR_RT_IFACE in /etc/profile.d/lxmstr-config.sh "
-                 "(run lxmstr host tune first).\n";
+    std::cerr << "No EtherCAT interface: set LXMASTER_RT_IFACE in /etc/profile.d/lxmaster-config.sh "
+                 "(run lxmaster host tune first).\n";
     return 1;
   }
 
-  // set the path for network ENI file (generate by: lxmstr eni gen -h )
+  // set the path for network ENI file (generate by: lxmaster eni gen -h )
   cfg.eni.eni_path = "~/myenifolder/myenifile.xml";
 
   // define an ethercat network
-  lxmstr::EcNetwork net(cfg);
+  lxmaster::EcNetwork net(cfg);
 
   std::cout << "sine+shift demo: iface=" << cfg.bus.ifname << " eni=" << cfg.eni.eni_path << "\n";
 
@@ -100,24 +100,24 @@ int main() {
     return 1;
   }
 
-  std::vector<lxmstr::Axis*> axes = net.axes();
+  std::vector<lxmaster::Axis*> axes = net.axes();
   if (axes.empty()) {
     std::cerr << "ENI produced no motion axes to command.\n";
     return 1;
   }
 
   // iterate over servo drive axes and set them to Cyclic Synchronous Position mode
-  for (lxmstr::Axis* ax : axes) {
-    ax->setDriveMode(lxmstr::DriveOpMode::Csp);
+  for (lxmaster::Axis* ax : axes) {
+    ax->setDriveMode(lxmaster::DriveOpMode::Csp);
     ax->configure();  // walk this axis up to OP
   }
 
   // take the first drive on the network
-  lxmstr::Axis* drive = axes.front();
+  lxmaster::Axis* drive = axes.front();
 
   // find the first I/O module with enough digital outputs
-  lxmstr::IoModule* io = nullptr;
-  for (lxmstr::IoModule* m : net.ioModules()) {
+  lxmaster::IoModule* io = nullptr;
+  for (lxmaster::IoModule* m : net.ioModules()) {
     if (m->digitalOutputCount() >= static_cast<std::size_t>(kNumBits)) {
       io = m;
       break;
@@ -151,7 +151,7 @@ int main() {
             << "  I/O  '" << io->name() << "': " << io->digitalOutputCount()
             << " DO, " << kNumBits << "-bit walk @ "
             << kBitIntervalS << " s\n"
-            << "  sync=" << (net.syncMode() == lxmstr::SyncMode::DcSync0 ? "DC" : "SM-event")
+            << "  sync=" << (net.syncMode() == lxmaster::SyncMode::DcSync0 ? "DC" : "SM-event")
             << " cycle=" << net.cycleTimeNs() << " ns"
             << " -> run " << kRunSeconds << " s\n";
 

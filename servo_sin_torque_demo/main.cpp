@@ -10,7 +10,7 @@
 #include <thread>
 #include <vector>
 
-#include <lxmstr/lxmstr.hpp>
+#include <lxmaster/lxmaster.hpp>
 
 static std::atomic<bool> g_interrupted{false};
 
@@ -33,7 +33,7 @@ static void installSignalHandler() {
  * unloaded shaft will accelerate; ensure the axis is safe to spin freely.
  *
  * Only the ENI path and sine profile are configured below; the EtherCAT interface comes from the
- * LXMSTR_RT_IFACE env, and the cyclic period / sync mode come from the ENI. The ENI must map
+ * LXMASTER_RT_IFACE env, and the cyclic period / sync mode come from the ENI. The ENI must map
  * target torque 0x6071 and set modes-of-operation 0x6060 to CST (10). Edit the kXxx constants to
  * retarget.
  */
@@ -69,20 +69,20 @@ int main() {
   installSignalHandler();
 
   // Get a default set of Ethercat Network parameters
-  lxmstr::NetworkConfig cfg = lxmstr::NetworkConfig::defaults();
+  lxmaster::NetworkConfig cfg = lxmaster::NetworkConfig::defaults();
 
   // check to make sure ethercat interface name is set from ENV
   if (cfg.bus.ifname.empty()) {
-    std::cerr << "No EtherCAT interface: set LXMSTR_RT_IFACE in /etc/profile.d/lxmstr-config.sh "
-                 "(run lxmstr host tune first).\n";
+    std::cerr << "No EtherCAT interface: set LXMASTER_RT_IFACE in /etc/profile.d/lxmaster-config.sh "
+                 "(run lxmaster host tune first).\n";
     return 1;
   }
 
-  // set the path for network ENI file (generate by: lxmstr eni gen -h )
+  // set the path for network ENI file (generate by: lxmaster eni gen -h )
   cfg.eni.eni_path = "~/myenifolder/myenifile.xml";
 
   // define an ethercat network
-  lxmstr::EcNetwork net(cfg);
+  lxmaster::EcNetwork net(cfg);
 
   // prepare the network
   if (!net.prepare()) {
@@ -90,20 +90,20 @@ int main() {
     return 1;
   }
 
-  std::vector<lxmstr::Axis*> axes = net.axes();
+  std::vector<lxmaster::Axis*> axes = net.axes();
   if (axes.empty()) {
     std::cerr << "ENI produced no motion axes to command.\n";
     return 1;
   }
 
   // iterate over servo drive axes and set them to Cyclic Synchronous Torque mode
-  for (lxmstr::Axis* ax : axes) {
-    ax->setDriveMode(lxmstr::DriveOpMode::Cst);
+  for (lxmaster::Axis* ax : axes) {
+    ax->setDriveMode(lxmaster::DriveOpMode::Cst);
     ax->configure();  // walk this axis up to OP
   }
 
   // take the first drive on the network
-  lxmstr::Axis* drive = axes.front();
+  lxmaster::Axis* drive = axes.front();
 
   // start the network
   if (!net.start()) {

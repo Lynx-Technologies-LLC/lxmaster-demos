@@ -5,7 +5,7 @@
 #include <iostream>
 #include <thread>
 
-#include <lxmstr/lxmstr.hpp>
+#include <lxmaster/lxmaster.hpp>
 
 static std::atomic<bool> g_interrupted{false};
 
@@ -35,7 +35,7 @@ static int activeBitAt(std::chrono::steady_clock::time_point now,
 }
 
 /* Clear every output, then light only `bit`. */
-static void applyBit(lxmstr::IoModule* mod, int bit) {
+static void applyBit(lxmaster::IoModule* mod, int bit) {
   for (int ch = 0; ch < kNumBits; ++ch) {
     mod->writeDigital(static_cast<std::size_t>(ch), false);
   }
@@ -49,16 +49,16 @@ int main() {
   installSignalHandler();
 
   // Get a default set of Ethercat Network parameters
-  lxmstr::NetworkConfig cfg = lxmstr::NetworkConfig::defaults();
+  lxmaster::NetworkConfig cfg = lxmaster::NetworkConfig::defaults();
 
   // check to make sure ethercat interface name is set from ENV
   if (cfg.bus.ifname.empty()) {
-    std::cerr << "No EtherCAT interface: set LXMSTR_RT_IFACE in /etc/profile.d/lxmstr-config.sh "
-                 "(run lxmstr host tune first).\n";
+    std::cerr << "No EtherCAT interface: set LXMASTER_RT_IFACE in /etc/profile.d/lxmaster-config.sh "
+                 "(run lxmaster host tune first).\n";
     return 1;
   }
 
-  // set the path for network ENI file (generate by: lxmstr eni gen -h )
+  // set the path for network ENI file (generate by: lxmaster eni gen -h )
   cfg.eni.eni_path = "~/myenifolder/myenifile.xml";
   /* Sync mode is not chosen here: it is decided by the ENI, which is generated from the discovered
    * modules. A pure-I/O bus (no SYNC0 device) resolves to SM-event automatically; a mixed bus that
@@ -66,7 +66,7 @@ int main() {
    * per-slave (only the drives) while the I/O modules keep running on the SM event. */
 
   // define an ethercat network
-  lxmstr::EcNetwork net(cfg);
+  lxmaster::EcNetwork net(cfg);
 
   // prepare the network
   if (!net.prepare()) {
@@ -75,8 +75,8 @@ int main() {
   }
 
   // find the first I/O module with enough digital outputs
-  lxmstr::IoModule* mod = nullptr;
-  for (lxmstr::IoModule* m : net.ioModules()) {
+  lxmaster::IoModule* mod = nullptr;
+  for (lxmaster::IoModule* m : net.ioModules()) {
     if (m->digitalOutputCount() >= static_cast<std::size_t>(kNumBits)) {
       mod = m;
       break;

@@ -1,13 +1,13 @@
 cmake_minimum_required(VERSION 3.16)
-project(lxmstr_demos CXX)
+project(lxmaster_demos CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Consumes an installed LXMSTR package. This provides the imported target
-# lxmstr::ecnet (which transitively carries facade/devices/ecmaster/eni and the
-# public headers, including the <lxmstr/lxmstr.hpp> umbrella).
-find_package(lxmstr CONFIG REQUIRED)
+# Consumes an installed LXMASTER package. This provides the imported target
+# lxmaster::ecnet (which transitively carries facade/devices/ecmaster/eni and the
+# public headers, including the <lxmaster/lxmaster.hpp> umbrella).
+find_package(lxmaster CONFIG REQUIRED)
 find_package(Threads REQUIRED)
 
 add_subdirectory(do_shift_demo)

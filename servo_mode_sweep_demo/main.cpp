@@ -11,7 +11,7 @@
 #include <thread>
 #include <vector>
 
-#include <lxmstr/lxmstr.hpp>
+#include <lxmaster/lxmaster.hpp>
 
 static std::atomic<bool> g_interrupted{false};
 
@@ -89,7 +89,7 @@ static std::int32_t cstTorqueAt(TimePoint now, TimePoint start) {
  * Run one phase for `duration` seconds, invoking `command(now, start)` every cycle to set the
  * target. Returns false if the run ended early (watchdog / fault / Ctrl-C), true if completed.
  */
-bool runPhase(lxmstr::EcNetwork& net, const char* label, double duration,
+bool runPhase(lxmaster::EcNetwork& net, const char* label, double duration,
               const std::function<void(TimePoint, TimePoint)>& command) {
   std::cout << "Executing " << label << " mode\n";
   const auto update_period = std::chrono::nanoseconds(net.cycleTimeNs());
@@ -105,7 +105,7 @@ bool runPhase(lxmstr::EcNetwork& net, const char* label, double duration,
 }
 
 /** Hold the current neutral command for `seconds` so the drive settles before a mode change. */
-void settle(lxmstr::EcNetwork& net, double seconds) {
+void settle(lxmaster::EcNetwork& net, double seconds) {
   const auto update_period = std::chrono::nanoseconds(net.cycleTimeNs());
   const auto start = std::chrono::steady_clock::now();
   while (net.isRunning() && !g_interrupted) {
@@ -120,32 +120,32 @@ int main() {
   installSignalHandler();
 
   // Get a default set of Ethercat Network parameters
-  lxmstr::NetworkConfig cfg = lxmstr::NetworkConfig::defaults();
+  lxmaster::NetworkConfig cfg = lxmaster::NetworkConfig::defaults();
 
   // check to make sure ethercat interface name is set from ENV
   if (cfg.bus.ifname.empty()) {
-    std::cerr << "No EtherCAT interface: set LXMSTR_RT_IFACE in /etc/profile.d/lxmstr-config.sh "
-                 "(run lxmstr host tune first).\n";
+    std::cerr << "No EtherCAT interface: set LXMASTER_RT_IFACE in /etc/profile.d/lxmaster-config.sh "
+                 "(run lxmaster host tune first).\n";
     return 1;
   }
 
-  // set the path for network ENI file (generate by: lxmstr eni gen -h )
+  // set the path for network ENI file (generate by: lxmaster eni gen -h )
   cfg.eni.eni_path = "~/myenifolder/myenifile.xml";
 
   // register a callback to report bus faults if a slave drops out mid-run
-  cfg.on_bus_fault = [](const lxmstr::BusFault& fault) {
+  cfg.on_bus_fault = [](const lxmaster::BusFault& fault) {
     std::cerr << "\n[bus-fault] " << fault.description << "\n";
     if (fault.break_slave != 0) {
       std::cerr << "[bus-fault] break at slave " << fault.break_slave << " '"
                 << fault.break_slave_name << "' port " << fault.break_port << "\n";
     }
-    for (const lxmstr::LostSlave& ls : fault.lost_slaves) {
+    for (const lxmaster::LostSlave& ls : fault.lost_slaves) {
       std::cerr << "[bus-fault]   lost: slave " << ls.index << " '" << ls.name << "'\n";
     }
   };
 
   // define an ethercat network
-  lxmstr::EcNetwork net(cfg);
+  lxmaster::EcNetwork net(cfg);
 
   std::cout << "servo mode-sweep demo: iface=" << cfg.bus.ifname << " eni=" << cfg.eni.eni_path
             << "\n";
@@ -156,20 +156,20 @@ int main() {
     return 1;
   }
 
-  std::vector<lxmstr::Axis*> axes = net.axes();
+  std::vector<lxmaster::Axis*> axes = net.axes();
   if (axes.empty()) {
     std::cerr << "ENI produced no motion axes to command.\n";
     return 1;
   }
 
   // iterate over servo drive axes and set them to Cyclic Synchronous Position mode
-  for (lxmstr::Axis* ax : axes) {
-    ax->setDriveMode(lxmstr::DriveOpMode::Csp);
+  for (lxmaster::Axis* ax : axes) {
+    ax->setDriveMode(lxmaster::DriveOpMode::Csp);
     ax->configure();  // walk this axis up to OP
   }
 
   // take the first drive on the network
-  lxmstr::Axis* drive = axes.front();
+  lxmaster::Axis* drive = axes.front();
 
   // start the network
   if (!net.start()) {
@@ -191,13 +191,13 @@ int main() {
             << "  " << kCyclesPerPhase << " cycles/phase @ " << kFrequencyHz
             << " Hz -> " << kPhaseSeconds << " s each\n"
             << "  center=" << hold << " sync="
-            << (net.syncMode() == lxmstr::SyncMode::DcSync0 ? "DC" : "SM-event")
+            << (net.syncMode() == lxmaster::SyncMode::DcSync0 ? "DC" : "SM-event")
             << " cycle=" << net.cycleTimeNs() << " ns\n";
 
   bool completed = true;
 
   // phase 1: CSP position sine around hold
-  drive->setDriveMode(lxmstr::DriveOpMode::Csp);
+  drive->setDriveMode(lxmaster::DriveOpMode::Csp);
   drive->moveTo(hold);
   std::this_thread::sleep_for(update_period);
   completed = runPhase(net, "CSP", kPhaseSeconds, [&](TimePoint now, TimePoint start) {
@@ -208,7 +208,7 @@ int main() {
   if (completed) {
     drive->moveTo(hold);
     settle(net, kSettleSeconds);
-    drive->setDriveMode(lxmstr::DriveOpMode::Csv);
+    drive->setDriveMode(lxmaster::DriveOpMode::Csv);
     drive->moveAtVelocity(0);
     std::this_thread::sleep_for(update_period);
     completed = runPhase(net, "CSV", kPhaseSeconds, [&](TimePoint now, TimePoint start) {
@@ -220,7 +220,7 @@ int main() {
   if (completed) {
     drive->moveAtVelocity(0);
     settle(net, kSettleSeconds);
-    drive->setDriveMode(lxmstr::DriveOpMode::Cst);
+    drive->setDriveMode(lxmaster::DriveOpMode::Cst);
     drive->applyTorque(0);
     std::this_thread::sleep_for(update_period);
     completed = runPhase(net, "CST", kPhaseSeconds, [&](TimePoint now, TimePoint start) {
