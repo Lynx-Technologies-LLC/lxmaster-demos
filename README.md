@@ -10,6 +10,7 @@ Demos in this repo:
 | Demo                     | What it shows                                                        |
 | ------------------------ | ------------------------------------------------------------------- |
 | `custom_profile_demo`    | Binds a custom profile (a CiA402DriveProfile subclass) to an A6 servo, prints its actual position, and exits. |
+| `imu_demo`               | Binds a brand-new device class (a direct IDeviceProfile for an IMU) reached via `devices()`, prints a few accel/gyro samples, and exits. |
 | `do_shift_demo`          | 16-bit digital-output left-shift walk on the first CiA401 I/O module. |
 | `servo_sin_demo`         | Cyclic Synchronous Position (CSP) sine profile on every axis.        |
 | `servo_sin_vel_demo`     | Cyclic Synchronous Velocity (CSV) sine profile on every axis.        |

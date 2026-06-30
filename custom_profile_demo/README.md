@@ -16,8 +16,9 @@ It demonstrates the whole custom-profile lifecycle without any motion:
 - **Register for one run.** `main.cpp` pushes a factory onto `NetworkConfig::extra_profile_factories`,
   which is considered ahead of the built-in device classes, so no static registration or
   whole-archive linking is needed.
-- **Reach it from the app.** The application downcasts `Axis::deviceProfile()` to the custom type to
-  access its extra API.
+- **Reach it from the app.** The application recovers the custom type from `Axis::deviceProfile()`
+  without RTTI -- this is an RT system, so it guards on the unique `profileName()` and `static_cast`s
+  once at setup (no `dynamic_cast`), then uses its extra API.
 
 ## Requirements
 

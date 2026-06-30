@@ -1,5 +1,6 @@
 #include <chrono>
 #include <cstdint>
+#include <cstring>
 #include <iostream>
 #include <memory>
 #include <thread>
@@ -111,7 +112,11 @@ int main() {
     return 1;
   }
 
-  if (auto* mine = dynamic_cast<demo::A6ExtendedProfile*>(drive->deviceProfile())) {
+  // RTTI-free downcast: this is an RT system, so guard on the unique profileName() and static_cast
+  // (done once here at setup, not on any cyclic path).
+  ecdev::IDeviceProfile* prof = drive->deviceProfile();
+  if (prof != nullptr && std::strcmp(prof->profileName(), "a6-custom") == 0) {
+    auto* mine = static_cast<demo::A6ExtendedProfile*>(prof);
     std::cout << "Custom profile in use: " << mine->profileName() << "\n";
   }
 
