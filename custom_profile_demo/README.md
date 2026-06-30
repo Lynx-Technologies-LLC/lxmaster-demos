@@ -10,7 +10,9 @@ It demonstrates the whole custom-profile lifecycle without any motion:
   (which is not `final`) and overrides only what it needs, chaining to the base. Because the subclass
   inherits `asMotion()`, the `Axis` facade keeps working unchanged. To expose an extra vendor PDO
   variable you override `readInputs` (and optionally `resolveTopology`) and snapshot your object into
-  your own atomics -- see the commented template in [`a6_extended_profile.hpp`](a6_extended_profile.hpp).
+  your own atomics -- see the commented template in [`main.cpp`](main.cpp).
+- **Static factory.** `A6ExtendedProfile::make` maps `ProfileSelectionInput` to a profile instance;
+  `main()` passes it to `makeIdentityProfileFactory` (same role as `ecdev::makeCiA402DriveProfile`).
 - **Register for one run.** `main.cpp` pushes a factory onto `NetworkConfig::extra_profile_factories`,
   which is considered ahead of the built-in device classes, so no static registration or
   whole-archive linking is needed.
