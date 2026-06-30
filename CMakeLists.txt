@@ -10,6 +10,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(lxmaster CONFIG REQUIRED)
 find_package(Threads REQUIRED)
 
+add_subdirectory(custom_profile_demo)
 add_subdirectory(do_shift_demo)
 add_subdirectory(servo_mode_sweep_demo)
 add_subdirectory(servo_sin_demo)
